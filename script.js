@@ -48,14 +48,14 @@ function animateTextStream(element, text, callback) {
             scrollToBottom();
         }
         
-        // Variable speed: much faster animation
-        let delay = 3;
+        // Variable speed: faster animation
+        let delay = 1;
         if (char === ' ') {
-            delay = 1;
+            delay = 0;
         } else if (char === '.' || char === '!' || char === '?') {
-            delay = 5;
-        } else if (char === ',') {
             delay = 2;
+        } else if (char === ',') {
+            delay = 1;
         }
         
         setTimeout(stream, delay);
@@ -64,14 +64,58 @@ function animateTextStream(element, text, callback) {
     stream();
 }
 
-function addMessage(text, isUser, sources = null) {
+function addSystemMessage(text) {
     const messages = document.getElementById('chatMessages');
     if (!messages) {
         console.error('chatMessages element not found');
         return;
     }
     
-    // Hide suggested queries when adding a message
+    // Hide welcome screen and suggested queries when adding a message
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+    }
+    const suggestedQueries = document.getElementById('suggestedQueries');
+    if (suggestedQueries) {
+        suggestedQueries.style.display = 'none';
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message system';
+    messageDiv.style.opacity = '0';
+    messageDiv.style.transform = 'translateY(8px)';
+    
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    const paragraph = document.createElement('p');
+    paragraph.textContent = text;
+    content.appendChild(paragraph);
+    
+    messageDiv.appendChild(content);
+    messages.appendChild(messageDiv);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        messageDiv.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        messageDiv.style.opacity = '1';
+        messageDiv.style.transform = 'translateY(0)';
+        scrollToBottom();
+    });
+}
+
+function addMessage(text, isUser, sources = null, files = null, showGraph = false) {
+    const messages = document.getElementById('chatMessages');
+    if (!messages) {
+        console.error('chatMessages element not found');
+        return;
+    }
+    
+    // Hide welcome screen and suggested queries when adding a message
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+    }
     const suggestedQueries = document.getElementById('suggestedQueries');
     if (suggestedQueries) {
         suggestedQueries.style.display = 'none';
@@ -94,6 +138,26 @@ function addMessage(text, isUser, sources = null) {
     if (isUser) {
         paragraph.innerHTML = formattedText;
         content.appendChild(paragraph);
+        
+        // Add file attachments if provided
+        if (files && files.length > 0) {
+            files.forEach(file => {
+                const attachmentDiv = document.createElement('div');
+                attachmentDiv.className = 'message-attachment';
+                attachmentDiv.innerHTML = `
+                    <svg class="message-attachment-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>FILE</span>
+                `;
+                content.appendChild(attachmentDiv);
+            });
+        }
+        
         messageDiv.appendChild(content);
         messages.appendChild(messageDiv);
         
@@ -102,6 +166,11 @@ function addMessage(text, isUser, sources = null) {
             messageDiv.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
             messageDiv.style.opacity = '1';
             messageDiv.style.transform = 'translateY(0)';
+            // Scroll after animation
+            scrollToBottom();
+            setTimeout(() => {
+                scrollToBottom();
+            }, 350);
         });
         
         scrollToBottom();
@@ -125,10 +194,19 @@ function addMessage(text, isUser, sources = null) {
         // Start streaming text after a short delay
         setTimeout(() => {
             animateTextStream(paragraph, formattedText, () => {
-                // Text streaming complete, scroll to bottom and add feedback buttons
-                scrollToBottom();
+                // Text streaming complete, add graph if needed
+                if (showGraph) {
+                    setTimeout(() => {
+                        addFTEGraph(content);
+                    }, 200);
+                }
+                // Add feedback buttons
                 setTimeout(() => {
                     addAIMessageElements(messageDiv, sources);
+                    // Scroll after elements are added
+                    setTimeout(() => {
+                        scrollToBottom();
+                    }, 50);
                 }, 100);
             });
         }, 100);
@@ -187,6 +265,10 @@ function addAIMessageElements(messageDiv, sources = null) {
     requestAnimationFrame(() => {
         feedbackDiv.style.transition = 'opacity 0.3s ease-in';
         feedbackDiv.style.opacity = '1';
+        // Scroll after feedback buttons are visible
+        setTimeout(() => {
+            scrollToBottom();
+        }, 100);
     });
     
     // Add sources if provided
@@ -223,6 +305,10 @@ function addAIMessageElements(messageDiv, sources = null) {
                 sourcesList.style.display = 'flex';
                 sourcesButton.innerHTML = `Hide ${sources.length} source${sources.length > 1 ? 's' : ''} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>`;
                 sourcesButton.classList.add('expanded');
+                // Scroll to bottom when sources are expanded
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 50);
             } else {
                 sourcesList.style.display = 'none';
                 sourcesButton.innerHTML = `Show ${sources.length} source${sources.length > 1 ? 's' : ''} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
@@ -238,6 +324,10 @@ function addAIMessageElements(messageDiv, sources = null) {
         requestAnimationFrame(() => {
             sourcesDiv.style.transition = 'opacity 0.3s ease-in';
             sourcesDiv.style.opacity = '1';
+            // Scroll after sources are visible
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
         });
     }
 }
@@ -333,10 +423,135 @@ function removeTypingIndicator() {
     }
 }
 
+function addFTEGraph(container) {
+    // FTE data for last 12 months (sample data)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const fteData = [228, 232, 235, 238, 240, 242, 240, 243, 245, 247, 244, 242];
+    
+    const maxValue = Math.max(...fteData);
+    const minValue = Math.min(...fteData);
+    const range = maxValue - minValue;
+    const chartHeight = 200;
+    const chartWidth = 600;
+    const barWidth = (chartWidth - 40) / 12;
+    const padding = 20;
+    
+    const graphContainer = document.createElement('div');
+    graphContainer.className = 'fte-graph-container';
+    
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', chartWidth);
+    svg.setAttribute('height', chartHeight + 60);
+    svg.setAttribute('viewBox', `0 0 ${chartWidth} ${chartHeight + 60}`);
+    svg.style.maxWidth = '100%';
+    svg.style.height = 'auto';
+    
+    // Background
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('width', chartWidth);
+    bg.setAttribute('height', chartHeight + 60);
+    bg.setAttribute('fill', '#fafafa');
+    bg.setAttribute('rx', '8');
+    svg.appendChild(bg);
+    
+    // Grid lines
+    for (let i = 0; i <= 5; i++) {
+        const y = padding + (chartHeight / 5) * i;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', padding);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', chartWidth - padding);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', 'rgba(0, 0, 0, 0.05)');
+        line.setAttribute('stroke-width', '1');
+        svg.appendChild(line);
+    }
+    
+    // Bars
+    fteData.forEach((value, index) => {
+        const barHeight = ((value - minValue) / range) * chartHeight;
+        const x = padding + index * barWidth + barWidth * 0.1;
+        const y = padding + chartHeight - barHeight;
+        const width = barWidth * 0.8;
+        
+        const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bar.setAttribute('x', x);
+        bar.setAttribute('y', y);
+        bar.setAttribute('width', width);
+        bar.setAttribute('height', barHeight);
+        bar.setAttribute('fill', '#9773FF');
+        bar.setAttribute('rx', '4');
+        bar.setAttribute('opacity', '0');
+        svg.appendChild(bar);
+        
+        // Animate bar
+        setTimeout(() => {
+            bar.style.transition = 'opacity 0.3s ease, height 0.5s ease';
+            bar.setAttribute('opacity', '1');
+        }, index * 50);
+        
+        // Value label on top of bar
+        const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        valueText.setAttribute('x', x + width / 2);
+        valueText.setAttribute('y', y - 5);
+        valueText.setAttribute('text-anchor', 'middle');
+        valueText.setAttribute('font-size', '11');
+        valueText.setAttribute('font-weight', '500');
+        valueText.setAttribute('fill', '#1a1a1a');
+        valueText.setAttribute('opacity', '0');
+        valueText.textContent = value;
+        svg.appendChild(valueText);
+        
+        setTimeout(() => {
+            valueText.style.transition = 'opacity 0.3s ease';
+            valueText.setAttribute('opacity', '1');
+        }, index * 50 + 300);
+        
+        // Month label
+        const monthText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        monthText.setAttribute('x', x + width / 2);
+        monthText.setAttribute('y', chartHeight + padding + 20);
+        monthText.setAttribute('text-anchor', 'middle');
+        monthText.setAttribute('font-size', '11');
+        monthText.setAttribute('fill', '#6b7280');
+        monthText.textContent = months[index];
+        svg.appendChild(monthText);
+    });
+    
+    // Y-axis labels
+    for (let i = 0; i <= 5; i++) {
+        const value = Math.round(minValue + (range / 5) * (5 - i));
+        const y = padding + (chartHeight / 5) * i;
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', padding - 8);
+        label.setAttribute('y', y + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('font-size', '10');
+        label.setAttribute('fill', '#9ca3af');
+        label.textContent = value;
+        svg.appendChild(label);
+    }
+    
+    graphContainer.appendChild(svg);
+    container.appendChild(graphContainer);
+    
+    // Scroll after graph is added
+    setTimeout(() => {
+        scrollToBottom();
+    }, 100);
+}
+
 function scrollToBottom() {
     const messages = document.getElementById('chatMessages');
     if (messages) {
-        messages.scrollTop = messages.scrollHeight;
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+            messages.scrollTop = messages.scrollHeight;
+            // Also try after a small delay to catch any late layout changes
+            setTimeout(() => {
+                messages.scrollTop = messages.scrollHeight;
+            }, 10);
+        });
     }
 }
 
@@ -357,7 +572,7 @@ function showThinkingStep(stepText, stepIndex) {
     
     const stepIcon = document.createElement('div');
     stepIcon.className = 'thinking-step-icon';
-    stepIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+    stepIcon.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div>';
     
     const stepTextDiv = document.createElement('div');
     stepTextDiv.className = 'thinking-step-text';
@@ -379,7 +594,7 @@ function showThinkingStep(stepText, stepIndex) {
     scrollToBottom();
 }
 
-function showThinkingProcess(steps, finalResponse, sources = null) {
+function showThinkingProcess(steps, finalResponse, sources = null, showGraph = false) {
     // Reset stop flag
     isThinkingStopped = false;
     
@@ -402,10 +617,13 @@ function showThinkingProcess(steps, finalResponse, sources = null) {
     content.className = 'message-content thinking-content';
     thinkingDiv.appendChild(content);
     
-    // Add stop button
+    // Add stop button container (aligned with feedback buttons)
+    const stopButtonContainer = document.createElement('div');
+    stopButtonContainer.className = 'thinking-stop-container';
     const stopButton = document.createElement('button');
     stopButton.className = 'stop-thinking-button';
     stopButton.textContent = 'Stop';
+    stopButton.type = 'button';
     stopButton.onclick = () => {
         isThinkingStopped = true;
         thinkingTimeouts.forEach(timeout => clearTimeout(timeout));
@@ -413,7 +631,8 @@ function showThinkingProcess(steps, finalResponse, sources = null) {
         thinkingDiv.remove();
         addMessage("Process stopped. How else can I help you?", false);
     };
-    content.appendChild(stopButton);
+    stopButtonContainer.appendChild(stopButton);
+    content.appendChild(stopButtonContainer);
     
     const messages = document.getElementById('chatMessages');
     if (messages) {
@@ -440,7 +659,7 @@ function showThinkingProcess(steps, finalResponse, sources = null) {
             thinkingDiv.style.opacity = '0';
             setTimeout(() => {
                 thinkingDiv.remove();
-                addMessage(finalResponse, false, sources);
+                addMessage(finalResponse, false, sources, null, showGraph);
             }, 200);
         }
         thinkingTimeouts = [];
@@ -597,6 +816,19 @@ Would you like me to customize this for a specific role or department?¹`;
             response = "I'm here to help! Feel free to ask me anything, and I'll do my best to assist you.";
         } else if (messageLower.includes('thank')) {
             response = "You're welcome! Is there anything else I can help you with?";
+        } else if (messageLower.includes('fte') || (messageLower.includes('graph') && messageLower.includes('12 months')) || (messageLower.includes('full-time') && messageLower.includes('months'))) {
+            const steps = [
+                'Retrieving FTE data from HRM system...',
+                'Analyzing employee headcount trends...',
+                'Generating visualization...'
+            ];
+            const response = `Here's the FTE (Full-Time Equivalent) trend over the last 12 months:
+
+The data shows a steady growth pattern with some seasonal variations. The peak was in **October** with 247 FTEs, while the lowest point was in **January** at 228 FTEs. Overall, we've seen a **8.3% increase** in headcount over this period.¹
+
+Would you like me to break this down by department or provide additional insights?²`;
+            showThinkingProcess(steps, response, [1, 2], true); // Pass true to indicate we need a graph
+            return;
         } else if (messageLower.includes('vacation') || messageLower.includes('days')) {
             response = "I can help with that. Based on my records¹, you currently have **14 vacation days remaining** for this year. 🌴 Did you know that you have two activity days per year to use as vacation as well?² If you have any further questions or need to request time off, feel free to ask or use the vacation request form here. Have a great day! 😊";
             sources = [1, 2];
@@ -634,8 +866,18 @@ function sendMessage() {
     }
     
     console.log('Adding message to chat');
-    addMessage(message, true);
+    const fileInput = document.getElementById('fileInput');
+    const files = window.pendingFiles || null;
+    addMessage(message, true, null, files);
     input.value = '';
+    
+    // Clear pending files after sending
+    if (window.pendingFiles) {
+        window.pendingFiles = null;
+        if (fileInput) {
+            fileInput.value = '';
+        }
+    }
     
     if (button) {
         button.disabled = true;
@@ -687,6 +929,11 @@ if (agentButton && agentPopover) {
         if (isShowing) {
             agentPopover.classList.remove('show');
         } else {
+            // Close products popover if open
+            const productsPopover = document.getElementById('productsPopover');
+            if (productsPopover && productsPopover.classList.contains('show')) {
+                productsPopover.classList.remove('show');
+            }
             agentPopover.classList.add('show');
         }
     });
@@ -699,6 +946,9 @@ if (agentButton && agentPopover) {
             const agentId = option.getAttribute('data-agent');
             const agentName = option.getAttribute('data-agent-name');
             
+            // Only show system message if agent actually changed
+            const previousAgent = currentAgent;
+            
             // Update selected state
             agentOptions.forEach(opt => opt.classList.remove('selected'));
             option.classList.add('selected');
@@ -709,14 +959,17 @@ if (agentButton && agentPopover) {
             // Close popover
             agentPopover.classList.remove('show');
             
-            // Handle different agent types
-            if (agentId === 'human') {
-                // Show message that chat is being directed to human
-                addMessage(`Your conversation is being directed to an HR expert. They'll be with you shortly.`, false);
-            } else {
-                // Update to selected AI agent
-                console.log(`Switched to agent: ${agentName}`);
-                // In a real implementation, this would update the AI agent context
+            // Only show system message if agent changed (not initial selection)
+            if (previousAgent !== agentId) {
+                // Handle different agent types
+                if (agentId === 'human') {
+                    // Show system message that chat is being directed to human
+                    addSystemMessage(`Your conversation is being directed to an HR expert. They'll be with you shortly.`);
+                } else {
+                    // Show system message for agent change
+                    addSystemMessage(`Switched to ${agentName}`);
+                    // In a real implementation, this would update the AI agent context
+                }
             }
         });
     });
@@ -741,25 +994,81 @@ if (attachmentButton && fileInput) {
         const files = e.target.files;
         if (files.length > 0) {
             console.log('Files selected:', files);
-            // TODO: Handle file upload and display in chat
-            // For now, just show a message
-            addMessage(`Attached ${files.length} file(s)`, true);
+            // Store files for the next message
+            window.pendingFiles = Array.from(files);
         }
     });
 }
 
-// Handle products button
+// Handle products button and popover
+let currentProduct = 'all';
 const productsButton = document.getElementById('productsButton');
-if (productsButton) {
-    productsButton.addEventListener('click', () => {
-        // TODO: Open products selection menu
-        console.log('Select product');
-        // This would show a dropdown with options like:
-        // - All products
-        // - Analytics
-        // - Recruitment
-        // - Performance Management
-        // - etc.
+const productsPopover = document.getElementById('productsPopover');
+const productOptions = document.querySelectorAll('.product-option');
+
+if (productsButton && productsPopover) {
+    const productsWrapper = productsButton.closest('.products-selector-wrapper');
+    
+    productsButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isShowing = productsPopover.classList.contains('show');
+        
+        if (isShowing) {
+            productsPopover.classList.remove('show');
+        } else {
+            // Close agent popover if open
+            const agentPopover = document.getElementById('agentPopover');
+            if (agentPopover && agentPopover.classList.contains('show')) {
+                agentPopover.classList.remove('show');
+            }
+            productsPopover.classList.add('show');
+        }
+    });
+    
+    // Handle product selection
+    productOptions.forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const productId = option.getAttribute('data-product');
+            const productName = option.getAttribute('data-product-name');
+            
+            // Update selected state
+            productOptions.forEach(opt => {
+                opt.classList.remove('selected', 'product-option-selected');
+            });
+            option.classList.add('selected');
+            
+            // Update current product
+            currentProduct = productId;
+            
+            // Update button text if not "All products"
+            if (productId !== 'all') {
+                const buttonSpan = productsButton.querySelector('span');
+                if (buttonSpan) {
+                    buttonSpan.textContent = productName;
+                }
+            } else {
+                const buttonSpan = productsButton.querySelector('span');
+                if (buttonSpan) {
+                    buttonSpan.textContent = 'All products';
+                }
+            }
+            
+            // Close popover
+            productsPopover.classList.remove('show');
+            
+            console.log(`Switched to product: ${productName}`);
+            // In a real implementation, this would update the product context
+        });
+    });
+    
+    // Close popover when clicking outside
+    document.addEventListener('click', (e) => {
+        if (productsWrapper && !productsWrapper.contains(e.target)) {
+            productsPopover.classList.remove('show');
+        }
     });
 }
 
@@ -888,14 +1197,15 @@ if (document.readyState === 'loading') {
     setupChat();
 }
 
-// Also try after a delay as fallback
-setTimeout(function() {
-    const input = document.getElementById('userInput');
-    const button = document.getElementById('sendButton');
-    if (!input || !button) {
-        console.log('Retrying setup after delay...');
-        setupChat();
-    } else {
-        console.log('Elements already found, setup should be complete');
-    }
-}, 100);
+    // Also try after a delay as fallback
+    setTimeout(function() {
+        const input = document.getElementById('userInput');
+        const button = document.getElementById('sendButton');
+        if (!input || !button) {
+            console.log('Retrying setup after delay...');
+            setupChat();
+        } else {
+            console.log('Elements already found, setup should be complete');
+        }
+    }, 100);
+    
